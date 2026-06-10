@@ -74,6 +74,13 @@ const BASE = 'https://resultadosegundavuelta.onpe.gob.pe/presentacion-backend';
 const ID_ELECCION = 10;
 const ID_AMBITO = 1;
 
+// ← AGREGA ESTO
+async function fetchJson(url){
+  const proxy = 'https://orange-frog-a1c1.fsuwong.workers.dev/?url=';
+  const r = await fetch(proxy + encodeURIComponent(url));
+  return r.json();
+}
+  
 window.onload = async () => {
   await cargarDepartamentos();
   document.getElementById("cmbDepartamento").addEventListener("change", cargarProvincias);
@@ -98,7 +105,7 @@ async function cargarProvincias(){
   cmbDist.innerHTML = '<option value="">Todos los Distritos</option>';
   if(!dep) return;
   const url = `${BASE}/ubigeos/provincias?idEleccion=${ID_ELECCION}&idAmbitoGeografico=${ID_AMBITO}&idUbigeoDepartamento=${dep}`;
-  const result = await fetch(url).then(r=>r.json());
+  const result = await fetchJson(url);
   result.data.forEach(prov=>{
     cmbProv.innerHTML += `<option value="${prov.ubigeo}">${prov.nombre}</option>`;
   });
@@ -129,8 +136,8 @@ async function consultar(){
     parametros += `&tipoFiltro=${tipoFiltro}`;
 
     const [participantes, totales] = await Promise.all([
-      fetch(`${BASE}/resumen-general/participantes?${parametros}`).then(r=>r.json()),
-      fetch(`${BASE}/resumen-general/totales?${parametros}`).then(r=>r.json())
+      fetchJson(`${BASE}/resumen-general/participantes?${parametros}`),
+      fetchJson(`${BASE}/resumen-general/totales?${parametros}`)
     ]);
 
     mostrarKPIs(totales.data, participantes.data);
