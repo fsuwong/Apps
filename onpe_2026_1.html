@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resultados ONPE 2026</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',sans-serif;background:#f4f6f9;}
+.header{background:#0e2477;color:white;padding:20px;text-align:center;}
+.header h1{font-size:22px;font-weight:500;}
+.header p{font-size:13px;opacity:.8;margin-top:4px;}
+.container{max-width:1400px;margin:auto;padding:20px;}
+.filtros{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center;}
+select{padding:10px;border:1px solid #ccc;border-radius:6px;min-width:220px;font-size:14px;}
+button{background:#0445ad;color:white;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px;}
+button:hover{opacity:.9;}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;}
+.kpi{background:white;padding:16px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.kpi h3{font-size:12px;color:#666;font-weight:400;text-transform:uppercase;letter-spacing:.5px;}
+.kpi p{margin-top:8px;font-size:24px;font-weight:600;color:#0e2477;}
+.kpi.diferencia p{color:#555;}
+.kpi.falta-keiko{border-left:4px solid #f75a1c;}
+.kpi.falta-keiko p{color:#f75a1c;}
+.kpi.falta-keiko h3{color:#f75a1c;}
+.kpi.gana{border-left:4px solid #0b80ff;}
+.kpi.gana p{color:#0b80ff;}
+.resultados{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:20px;}
+.card{background:white;border-radius:10px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.candidato{font-size:20px;font-weight:600;}
+.partido{color:#888;margin-top:4px;font-size:14px;}
+.porcentaje{font-size:48px;font-weight:700;margin-top:12px;}
+.votos{margin-top:8px;font-size:16px;color:#444;}
+.barra{margin-top:16px;background:#eee;border-radius:25px;overflow:hidden;height:22px;}
+.progreso{height:100%;transition:width .5s ease;border-radius:25px;}
+.footer{margin-top:16px;text-align:right;color:#888;font-size:13px;}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;margin-top:6px;}
+.badge-azul{background:#e6f1fb;color:#0e2477;}
+.badge-naranja{background:#fff0ea;color:#c04000;}
+.estado{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:#555;}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.loading{text-align:center;padding:40px;color:#888;}
+.section-title{font-size:14px;font-weight:500;color:#666;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Resultados ONPE — Segunda Vuelta 2026</h1>
+  <p>Actualización automática cada 60 segundos</p>
+</div>
+
+<div class="container">
+
+  <div class="filtros">
+    <select id="cmbDepartamento"><option value="">Todos los Departamentos</option></select>
+    <select id="cmbProvincia"><option value="">Todas las Provincias</option></select>
+    <select id="cmbDistrito"><option value="">Todos los Distritos</option></select>
+    <button onclick="consultar()">Consultar</button>
+  </div>
+
+  <div class="section-title">Resumen general</div>
+  <div id="kpis" class="kpis"><div class="loading">Cargando datos...</div></div>
+
+  <div class="section-title" style="margin-top:20px;">Resultados por candidato</div>
+  <div id="resultados" class="resultados"></div>
+
+  <div class="footer">Última actualización: <span id="fecha">—</span></div>
+
+</div>
+
+<script>
+const BASE = 'https://resultadosegundavuelta.onpe.gob.pe/presentacion-backend';
+const ID_ELECCION = 10;
+const ID_AMBITO = 1;
+
+window.onload = async () => {
+  await cargarDepartamentos();
+  document.getElementById("cmbDepartamento").addEventListener("change", cargarProvincias);
+  document.getElementById("cmbProvincia").addEventListener("change", cargarDistritos);
+  consultar();
+};
+
+async function cargarDepartamentos(){
+  const url = `${BASE}/ubigeos/departamentos?idEleccion=${ID_ELECCION}&idAmbitoGeografico=${ID_AMBITO}`;
+  const result = await fetch(url).then(r=>r.json());
+  const cmb = document.getElementById("cmbDepartamento");
+  result.data.forEach(dep=>{
+    cmb.innerHTML += `<option value="${dep.ubigeo}">${dep.nombre}</option>`;
+  });
+}
+
+async function cargarProvincias(){
+  const dep = document.getElementById("cmbDepartamento").value;
+  const cmbProv = document.getElementById("cmbProvincia");
+  const cmbDist = document.getElementById("cmbDistrito");
+  cmbProv.innerHTML = '<option value="">Todas las Provincias</option>';
+  cmbDist.innerHTML = '<option value="">Todos los Distritos</option>';
+  if(!dep) return;
+  const url = `${BASE}/ubigeos/provincias?idEleccion=${ID_ELECCION}&idAmbitoGeografico=${ID_AMBITO}&idUbigeoDepartamento=${dep}`;
+  const result = await fetch(url).then(r=>r.json());
+  result.data.forEach(prov=>{
+    cmbProv.innerHTML += `<option value="${prov.ubigeo}">${prov.nombre}</option>`;
+  });
+}
+
+async function cargarDistritos(){
+  const prov = document.getElementById("cmbProvincia").value;
+  const cmbDist = document.getElementById("cmbDistrito");
+  cmbDist.innerHTML = '<option value="">Todos los Distritos</option>';
+  if(!prov) return;
+  const url = `${BASE}/ubigeos/distritos?idEleccion=${ID_ELECCION}&idAmbitoGeografico=${ID_AMBITO}&idUbigeoProvincia=${prov}`;
+  const result = await fetch(url).then(r=>r.json());
+  result.data.forEach(dist=>{
+    cmbDist.innerHTML += `<option value="${dist.ubigeo}">${dist.nombre}</option>`;
+  });
+}
+
+async function consultar(){
+  try{
+    let tipoFiltro = "eleccion";
+    let parametros = `idEleccion=${ID_ELECCION}`;
+    const dep = document.getElementById("cmbDepartamento").value;
+    const prov = document.getElementById("cmbProvincia").value;
+    const dist = document.getElementById("cmbDistrito").value;
+    if(dep){ tipoFiltro="ubigeo_nivel_01"; parametros+=`&idAmbitoGeografico=1&idUbigeoDepartamento=${dep}`; }
+    if(prov){ tipoFiltro="ubigeo_nivel_02"; parametros+=`&idUbigeoProvincia=${prov}`; }
+    if(dist){ tipoFiltro="ubigeo_nivel_03"; parametros+=`&idUbigeoDistrito=${dist}`; }
+    parametros += `&tipoFiltro=${tipoFiltro}`;
+
+    const [participantes, totales] = await Promise.all([
+      fetch(`${BASE}/resumen-general/participantes?${parametros}`).then(r=>r.json()),
+      fetch(`${BASE}/resumen-general/totales?${parametros}`).then(r=>r.json())
+    ]);
+
+    mostrarKPIs(totales.data, participantes.data);
+    mostrarResultados(participantes.data);
+    document.getElementById("fecha").innerText = new Date().toLocaleString('es-PE');
+  } catch(err){
+    console.error(err);
+    document.getElementById("kpis").innerHTML = '<div class="loading">Error al consultar la API de ONPE.</div>';
+  }
+}
+
+function mostrarKPIs(d, candidatos){
+  const c1 = candidatos[0];
+  const c2 = candidatos[1];
+  if(!c1 || !c2){ document.getElementById("kpis").innerHTML=''; return; }
+
+  const keiko = candidatos.find(c => c.codigoAgrupacionPolitica == 8) || c2;
+  const rival = candidatos.find(c => c.codigoAgrupacionPolitica != 8) || c1;
+
+  const keikoPct = keiko.porcentajeVotosValidos;
+  const rivalPct = rival.porcentajeVotosValidos;
+  const keikoVotos = keiko.totalVotosValidos;
+  const rivalVotos = rival.totalVotosValidos;
+
+  const diffPct = Math.abs(keikoPct - rivalPct).toFixed(3);
+  const diffVotos = Math.abs(keikoVotos - rivalVotos);
+  const liderando = keikoPct > rivalPct;
+  const liderNombre = liderando ? keiko.nombreCandidato.split(' ')[0] : rival.nombreCandidato.split(' ')[0];
+
+  // Actas pendientes y estimación de votos restantes
+  const actasProcesadas = d.actasContabilizadas;
+  const actasPendientesPct = (100 - actasProcesadas).toFixed(2);
+  const actasTotalNum = d.totalActas || 0;
+  const actasPendientesNum = d.contabilizadas
+    ? actasTotalNum - d.contabilizadas
+    : Math.round(actasTotalNum * (100 - actasProcesadas) / 100);
+
+  // Votos estimados en actas pendientes (proyección lineal)
+  const votosPorActa = actasProcesadas > 0
+    ? d.totalVotosValidos / (actasProcesadas / 100 * actasTotalNum)
+    : 0;
+  const votosEnPendientes = Math.round(actasPendientesNum * votosPorActa);
+
+  // Cuántos votos necesita Keiko de los pendientes para ganar
+  const totalVotosActual = d.totalVotosValidos;
+  const totalVotosEstimado = totalVotosActual + votosEnPendientes;
+  const votosNecesitaKeiko = Math.ceil(totalVotosEstimado * 0.50001) - keikoVotos;
+
+  const faltaLabel = liderando
+    ? `Ventaja: ${diffVotos.toLocaleString('es-PE')} votos`
+    : `Le faltan ${diffVotos.toLocaleString('es-PE')} votos`;
+
+  document.getElementById("kpis").innerHTML = `
+    <div class="kpi">
+      <h3>Actas contabilizadas</h3>
+      <p>${actasProcesadas.toFixed(2)}%</p>
+    </div>
+    <div class="kpi">
+      <h3>Actas pendientes</h3>
+      <p>${actasPendientesNum.toLocaleString('es-PE')}</p>
+    </div>
+    <div class="kpi">
+      <h3>Votos pendientes estimados</h3>
+      <p>${votosEnPendientes.toLocaleString('es-PE')}</p>
+    </div>
+    <div class="kpi diferencia">
+      <h3>Diferencia en votos (${liderNombre} lidera)</h3>
+      <p>${diffVotos.toLocaleString('es-PE')}</p>
+    </div>
+    <div class="kpi diferencia">
+      <h3>Diferencia en porcentaje</h3>
+      <p>${diffPct}%</p>
+    </div>
+    <div class="kpi ${liderando ? 'gana' : 'falta-keiko'}">
+      <h3>${liderando ? 'Keiko lidera por' : 'Keiko necesita aún'}</h3>
+      <p>${faltaLabel}</p>
+    </div>
+    <div class="kpi ${votosNecesitaKeiko <= 0 ? 'gana' : 'falta-keiko'}">
+      <h3>Votos que necesita Keiko (del restante)</h3>
+      <p>${votosNecesitaKeiko <= 0 ? 'Ya ganó' : votosNecesitaKeiko.toLocaleString('es-PE')}</p>
+    </div>
+  `;
+}
+
+function mostrarResultados(data){
+  let html = '';
+  data.forEach(c=>{
+    const esKeiko = c.codigoAgrupacionPolitica == 8;
+    const color = esKeiko ? '#f75a1c' : '#0b80ff';
+    const badge = esKeiko
+      ? '<span class="badge badge-naranja">Fuerza Popular</span>'
+      : '<span class="badge badge-azul">Partido rival</span>';
+    const va = c.porcentajeVotosValidos >= 50
+      ? `<div class="estado"><span class="dot" style="background:${color}"></span> Superó el 50% — ganaría</div>`
+      : `<div class="estado"><span class="dot" style="background:#ccc"></span> Aún sin mayoría</div>`;
+
+    html += `
+    <div class="card">
+      <div class="candidato">${c.nombreCandidato}</div>
+      ${badge}
+      <div class="partido">${c.nombreAgrupacionPolitica}</div>
+      <div class="porcentaje" style="color:${color}">${c.porcentajeVotosValidos.toFixed(3)}%</div>
+      <div class="votos">${c.totalVotosValidos.toLocaleString('es-PE')} votos válidos</div>
+      ${va}
+      <div class="barra">
+        <div class="progreso" style="width:${c.porcentajeVotosValidos}%;background:${color};"></div>
+      </div>
+    </div>`;
+  });
+  document.getElementById("resultados").innerHTML = html;
+}
+
+setInterval(consultar, 60000);
+</script>
+</body>
+</html>
